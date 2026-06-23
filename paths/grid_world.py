@@ -1,0 +1,36 @@
+import numpy as np
+from pathfinding.core.grid import Grid
+
+
+class GridWorld:
+    def __init__(
+        self,
+        width,
+        height,
+        default_cost=10.0,
+        use_to_cost_f=(lambda x: x),
+        cost_scale=1.0,
+    ):
+        self.width = width
+        self.height = height
+        self.default_cost = default_cost
+        self.use_to_cost_f = use_to_cost_f
+        self.cost_scale = cost_scale
+        self.uses = np.full((height, width), 0)
+        self.grid = Grid(width=width, height=height)
+        self._prev_costs = np.full((self.height, self.width), np.inf)
+        self.update_costs([])
+
+    def update_costs(self, buildings):
+        self.costs = np.full((self.height, self.width), float(self.default_cost))
+        self.costs -= self.use_to_cost_f(self.uses) * self.cost_scale
+        self.costs = np.clip(self.costs, 1, None)
+        for building in buildings:
+            self.costs[building.y, building.x] = 0
+        self.grid.cleanup()
+
+        changed_ys, changed_xs = np.where(self.costs != self._prev_costs)
+        for y, x in zip(changed_ys, changed_xs):
+            cost = self.costs[y, x]
+            self.grid.update_node(x, y, weight=cost, walkable=cost > 0)
+        self._prev_costs = self.costs.copy()
