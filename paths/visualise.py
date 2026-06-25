@@ -22,12 +22,17 @@ def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
     ax.set_yticks([])
 
     max_interval = 1 / manager.building_agent_rate
+    max_attractiveness = max((b.attractiveness for b in manager.buildings), default=1.0)
     for building in manager.buildings:
         t_remaining = building.next_agent_time - manager.time
         intensity = max(0.0, min(1.0, t_remaining / max_interval))
         colour = _building_cmap(1 - intensity)
+        normalised = min(building.attractiveness / max_attractiveness, 1.0)
+        t = min(manager.attractiveness_scale / 5.0, 1.0)
+        lw = 0.2 + 2.3 * normalised * t
         ax.add_patch(
-            patches.Rectangle((building.x - 0.5, building.y - 0.5), 1, 1, color=colour)
+            patches.Rectangle((building.x - 0.5, building.y - 0.5), 1, 1,
+                               facecolor=colour, edgecolor="white", linewidth=lw)
         )
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
 
