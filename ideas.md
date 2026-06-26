@@ -1,5 +1,8 @@
 # Ideas to implement
 
+## Next
+- Fix FlowField agent oscillation near non-target buildings: in `FieldFlowBackend.update()` (`pathfinder.py`), replace cost 0 with `np.inf` before building the graph so building tiles have infinite edge weight and are impassable. A* already handles this via `walkable=False` (`grid_world.py:35`); FlowField does not.
+
 ## Large / future
 - Directly interactable plot
 - Geographic features - height + slope, difficult terrain
@@ -9,15 +12,16 @@
 - Saved test scenarios - to show path cheapness effect
 - Buildings spawn near, but not on, roads (extend distributions.py)
 - Busy building type — high attractiveness, higher spawn rate
-- Momentum / inertia for agents — agent tracks its own last-move direction (dx, dy), updated after each move. Pass as extra args to next_step. FlowField backend blends momentum vector with field gradient before softmax sampling — reduces oscillation (each step being an independent sample causes back-and-forth). A* can ignore it. Temperature alone does not fix oscillation, momentum does.
-- FlowField: add diagonal edges (dx,dy in [(1,1),(1,-1),(-1,1),(-1,-1)], weight cost*sqrt(2)) to fix cityblock routing
+- Per-agent temperature — each agent has its own temperature value (e.g. drawn from a distribution on spawn), so the population has a mix of cautious/predictable and exploratory/random walkers rather than all agents sharing one global setting
 - Path drawing for A* backend — add get_display_path(agent_id) method, use in visualiser
-- Vectorise FlowField graph construction (currently slow double loop)
+- Congestion penalty — add a small cost *increase* on very heavily used tiles so agents seek alternatives. Caps road dominance but may just widen busy roads rather than divert to new ones; probably needs combining with high alpha to work as intended
+- Richer destination selection — weight targets by `attractiveness / distance ** beta` so agents prefer nearby buildings. Per-agent beta (drawn on spawn) gives a mix of local and long-range walkers. Seed buildings as natural hubs (high attractiveness) would drive inter-cluster arterial paths while local traffic fills in within clusters
+- Cost-ignoring slider — proportion of agents that ignore path costs and walk more directly (or randomly). Creates persistent off-road wear that can seed new paths rather than just widening existing ones
 
 ## Small
 - Global colour palette module (colourmaps currently local to visualise.py)
 - Use consistent palette throughout
-- Buildings spawn up to a limit with decreasing chance
+- Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths (slow-start, only rewards heavy use); lower alpha spreads them (edge tiles cheapened quickly). No cap either way — combine with congestion penalty for that
 
 ## Done
 - Sliders for parameters
@@ -34,3 +38,7 @@
 - Start with 2 buildings
 - Building attractiveness — weighted destination selection (power scaling via attractiveness_scale)
 - Swappable pathfinding backends (AStarBackend, FieldFlowBackend) with per-backend streamlit controls
+- Buildings spawn up to a limit with decreasing chance. Buildings have a decay factor slowing subsequent buildings, the 'steepness' of this effect can be controlled.
+- Momentum / inertia for agents — EMA velocity (vx, vy) per agent, passed to next_step. FlowField blends momentum into cost-space before softmax, reducing oscillation. A* ignores it.
+- FlowField: diagonal edges (weight cost*sqrt(2)) to fix cityblock routing and enable genuine corner-cutting
+- Vectorise FlowField graph construction (currently slow double loop)

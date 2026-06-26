@@ -12,11 +12,15 @@ import scipy.sparse as sp
 import scipy.sparse.csgraph as csg
 import numpy as np
 
+CARDINAL = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+DIAGONAL = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+DIA_COST = np.sqrt(2)
+
 
 class PathfinderBackend(ABC):
     @abstractmethod
     def next_step(
-        self, agent_id, x, y, target_x, target_y
+        self, agent_id, x, y, target_x, target_y, vx, vy
     ) -> tuple[int, int] | None: ...
 
     @abstractmethod
@@ -36,7 +40,9 @@ class AStarBackend(PathfinderBackend):
         self.recalculate_every = recalculate_every
         self._cache = dict()
 
-    def next_step(self, agent_id, x, y, target_x, target_y) -> tuple[int, int] | None:
+    def next_step(
+        self, agent_id, x, y, target_x, target_y, vx, vy
+    ) -> tuple[int, int] | None:
         if agent_id not in self._cache.keys():
             path = self.calculate_path(x, y, target_x, target_y)
             if not path or len(path) < 2:
@@ -104,12 +110,27 @@ class AStarBackend(PathfinderBackend):
 
 
 class FieldFlowBackend(PathfinderBackend):
-    def __init__(self, world, temperature, recalculate_every=5):
+    def __init__(self, world, temperature, diagonal=True, recalculate_every=5):
         self.world: GridWorld = world
         self.temperature: float = temperature
         self.recalculate_every = recalculate_every
         self._fields = {}
-        self._steps_since_update = 0
+        self._steps_since_update = -1
+        self.momentum_weight = 1
+        self.diagonal = diagonal
+        self.update_diagonals()
+        self.ys, self.xs = np.mgrid[0 : self.world.height, 0 : self.world.width]
+
+    def update_diagonals(self):
+        self.dxys = CARDINAL + DIAGONAL if self.diagonal else CARDINAL
+
+    def _dslice(self, d):
+        if d > 0:
+            return slice(None, -d)
+        if d < 0:
+            return slice(-d, None)
+        if d == 0:
+            return slice(None, None)
 
     def update(self, costs, buildings) -> None:
         self._steps_since_update += 1
@@ -117,19 +138,40 @@ class FieldFlowBackend(PathfinderBackend):
             self._steps_since_update = 0
             height, width = costs.shape
             n = height * width
+            costs = np.maximum(costs, 0.01).copy()
+            for b in buildings:
+                costs[b.y, b.x] = np.inf
+            rows = []
+            cols = []
+            data = []
 
-            graph = sp.lil_matrix((n, n), dtype=float)
+            for dx, dy in self.dxys:
+                x_slice = self._dslice(dx)
+                y_slice = self._dslice(dy)
 
-            for y in range(height):
-                for x in range(width):
-                    src = y * width + x
-                    for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-                        nx, ny = x + dx, y + dy
-                        if 0 <= nx < width and 0 <= ny < height:
-                            dst = ny * width + nx
-                            graph[src, dst] = costs[ny, nx]
+                src_y = self.ys[y_slice, x_slice]
+                src_x = self.xs[y_slice, x_slice]
+                dst_x = src_x + dx
+                dst_y = src_y + dy
 
-            graph = graph.tocsr()
+                scale = DIA_COST if dx != 0 and dy != 0 else 1.0
+                src = src_y * width + src_x
+                dst = dst_y * width + dst_x
+                weights = costs[dst_y, dst_x] * scale
+                if dx != 0 and dy != 0:
+                    valid = (costs[src_y, src_x + dx] < np.inf) & (
+                        costs[src_y + dy, src_x] < np.inf
+                    )
+                    weights = weights * valid
+
+                rows.append(src.flatten())
+                cols.append(dst.flatten())
+                data.append(weights.flatten())
+
+            graph = sp.csr_matrix(
+                (np.concatenate(data), (np.concatenate(rows), np.concatenate(cols))),
+                shape=(n, n),
+            )
 
             self._fields = {}
             for b in buildings:
@@ -137,7 +179,9 @@ class FieldFlowBackend(PathfinderBackend):
                 dist = csg.dijkstra(graph, indices=src)
                 self._fields[(b.x, b.y)] = dist.reshape(height, width)
 
-    def next_step(self, agent_id, x, y, target_x, target_y) -> tuple[int, int] | None:
+    def next_step(
+        self, agent_id, x, y, target_x, target_y, vx, vy
+    ) -> tuple[int, int] | None:
         height, width = self.world.height, self.world.width
 
         if (target_x, target_y) not in self._fields.keys():
@@ -147,19 +191,27 @@ class FieldFlowBackend(PathfinderBackend):
             return None
 
         neighbours = []
-        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+
+        for dx, dy in self.dxys:
             nx, ny = x + dx, y + dy
             if 0 <= nx < width and 0 <= ny < height:
                 cost = self._fields[(target_x, target_y)][ny, nx]
                 neighbours.append(((nx, ny), cost))
-
         if not neighbours:
             return None
-        positions, costs = zip(*neighbours)
-        costs = np.array(costs)
+
+        positions, _ = zip(*neighbours)
+        mom_costs = []
+        for pos, cost in neighbours:
+            dx, dy = pos[0] - x, pos[1] - y
+            dot = dx * vx + dy * vy
+            mom_costs.append(cost - self.momentum_weight * dot)
+
+        costs = np.array(mom_costs)
         if self.temperature == 0:
             return positions[np.argmin(costs)]
         else:
+            costs -= costs.min()
             weights = np.exp(-costs / self.temperature)
             weights = np.where(np.isfinite(weights), weights, 0.0)
             if weights.sum() == 0:
@@ -173,3 +225,4 @@ class FieldFlowBackend(PathfinderBackend):
             "Recalculate fields every:", 1, 50, self.recalculate_every
         )
         self.temperature = st.slider("Temperature", 0.0, 5.0, self.temperature)
+        self.momentum_weight = st.slider("Momentum weight", 0.0, 5.0, 0.5)

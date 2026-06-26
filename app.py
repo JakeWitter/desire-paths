@@ -10,8 +10,8 @@ from paths.pathfinder import AStarBackend, FieldFlowBackend
 
 st.set_page_config(layout="wide")
 
-GRID_WIDTH = 100
-GRID_HEIGHT = 55
+GRID_WIDTH = 150
+GRID_HEIGHT = 95
 PATHFINDING_OPTIONS = ["AStar", "FlowField"]
 
 if "manager" not in st.session_state:
@@ -41,28 +41,41 @@ with st.sidebar:
             st.session_state.manager = WorldManager(
                 width=GRID_WIDTH, height=GRID_HEIGHT
             )
-    steps_per_frame = st.slider("Steps per frame", 1, 50, 1)
+    steps_per_frame = st.slider("Steps per frame", 1, 200, 1)
     show_spawn_prob = st.checkbox("Show spawn probability")
 
     # st.divider()
 
     with st.expander("Path & cost"):
         with st.expander("Pathfinding"):
-            pathfinding_type = st.selectbox("Pathfinding backend", PATHFINDING_OPTIONS,
-                                            index=PATHFINDING_OPTIONS.index(st.session_state.pathfinding_type))
-            if pathfinding_type != st.session_state.pathfinding_type:
-                st.session_state.pathfinding_type = pathfinding_type
-                if pathfinding_type == "AStar":
-                    manager.pathfinder = AStarBackend(manager.world, diagonal=True, recalculate_every=5)
-                else:
-                    manager.pathfinder = FieldFlowBackend(manager.world, temperature=1.0)
+            current_type = (
+                "AStar" if isinstance(manager.pathfinder, AStarBackend) else "FlowField"
+            )
+            pathfinding_type = st.selectbox(
+                "Pathfinding backend",
+                PATHFINDING_OPTIONS,
+                index=PATHFINDING_OPTIONS.index(current_type),
+            )
+            if pathfinding_type == "AStar" and not isinstance(
+                manager.pathfinder, AStarBackend
+            ):
+                manager.pathfinder = AStarBackend(
+                    manager.world, diagonal=True, recalculate_every=5
+                )
+                manager.agents = []
+            elif pathfinding_type == "FlowField" and not isinstance(
+                manager.pathfinder, FieldFlowBackend
+            ):
+                manager.pathfinder = FieldFlowBackend(manager.world, temperature=1.0)
                 manager.agents = []
             manager.pathfinder.streamlit_controls()
         scale = st.slider("Cost reduction scale", 0.0, 8.0, 1.0)
         default_cost = st.slider("Default tile cost", 0.0, 100.0, 20.0)
         cost_f_selected = st.selectbox("Cost function", list(COST_Fs.keys()))
         path_degrade_factor = st.selectbox(
-            "Path degrade factor", [0.8, 0.9, 0.99, 0.995, 1.0], index=3
+            "Path degrade factor",
+            [0.8, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 1.0],
+            index=3,
         )
 
     with st.expander("Buildings"):
@@ -104,6 +117,7 @@ plt.close(fig)
 st.caption(
     f"Time: {manager.time} | Buildings: {len(manager.buildings)} | Agents: {len(manager.agents)} | Next building: {int(manager.next_building_time - manager.time)} steps"
 )
+st.caption(f"Seed positions: {manager.seed_positions}")
 
 if st.session_state.running:
     t0 = time.perf_counter()

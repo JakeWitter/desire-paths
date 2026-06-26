@@ -4,7 +4,7 @@ from random import sample
 from .grid_world import GridWorld
 from .agent import Agent
 from .building import Building
-from .distributions import building_spawn_prob
+from .distributions import building_spawn_prob, seed_positions
 from .pathfinder import PathfinderBackend, AStarBackend
 
 
@@ -24,6 +24,7 @@ class WorldManager:
         building_rate_decay=0.1,
         agent_factor=1.0,
         attractiveness_scale=1.0,
+        n_seeds=3,
     ):
         self.world: GridWorld = GridWorld(width, height, default_cost=default_cost)
         self.pathfinder: PathfinderBackend = AStarBackend(
@@ -45,15 +46,24 @@ class WorldManager:
         self.agent_factor = agent_factor
         self.attractiveness_scale = attractiveness_scale
 
-        self.spawn_building()
-        self.spawn_building()
+        self.seed_positions = seed_positions(n_seeds, width, height)
+        for x, y in self.seed_positions:
+            self.spawn_building(x, y, "seed")
 
-    def spawn_building(self):
-        prob = building_spawn_prob(self.world.width, self.world.height, self.buildings)
-        flat = prob.flatten()
-        flat /= flat.sum()
-        idx = np.random.choice(len(flat), p=flat)
-        y, x = divmod(idx, self.world.width)
+        for b in self.buildings:
+            self.spawn_agent(source=b)
+
+    def spawn_building(
+        self, x: int | None = None, y: int | None = None, building_type: str = "norm"
+    ):
+        if x is None or y is None:
+            prob = building_spawn_prob(
+                self.world.width, self.world.height, self.buildings
+            )
+            flat = prob.flatten()
+            flat /= flat.sum()
+            idx = np.random.choice(len(flat), p=flat)
+            y, x = divmod(idx, self.world.width)
         attractiveness = 1.0 + np.random.exponential(1.0)
         building = Building(
             int(x),
@@ -62,10 +72,13 @@ class WorldManager:
             self.time,
             self.agent_factor,
             attractiveness=attractiveness,
+            building_type=building_type,
         )
         self.buildings.append(building)
         self.world.update_costs(self.buildings)
-        self.spawn_agent(source=building)
+        self.pathfinder.update(self.world.costs, self.buildings)
+        if building_type == "norm":
+            self.spawn_agent(source=building)
 
     def spawn_agent(self, source=None, target=None):
         if len(self.buildings) >= 2:

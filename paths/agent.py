@@ -16,6 +16,7 @@ class Agent:
         y=0,
         target_x=5,
         target_y=5,
+        alpha=1,
     ):
         self.world = world
         self.x, self.y = x, y
@@ -23,6 +24,9 @@ class Agent:
         self.alive = True
         self.id = randint(0, 100000)
         self.pathfinder = pathfinder
+        self.vx = 0
+        self.vy = 0
+        self.alpha = alpha
 
     @classmethod
     def from_buildings(
@@ -45,9 +49,13 @@ class Agent:
 
     def move(self):
         result = self.pathfinder.next_step(
-            self.id, self.x, self.y, self.target_x, self.target_y
+            self.id, self.x, self.y, self.target_x, self.target_y, self.vx, self.vy
         )
         if result is None:
             self.alive = False
         else:
+            dx = result[0] - self.x
+            dy = result[1] - self.y
+            self.vx = self.alpha * dx + (1 - self.alpha) * self.vx
+            self.vy = self.alpha * dy + (1 - self.alpha) * self.vy
             self.x, self.y = result

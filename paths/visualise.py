@@ -4,7 +4,6 @@ from matplotlib.colors import LinearSegmentedColormap
 from .world_manager import WorldManager
 from .distributions import building_spawn_prob
 
-# TODO: move to a global palette module
 _building_cmap = LinearSegmentedColormap.from_list("building", ["black", "red"])
 
 
@@ -31,18 +30,24 @@ def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
         t = min(manager.attractiveness_scale / 5.0, 1.0)
         lw = 0.2 + 2.3 * normalised * t
         ax.add_patch(
-            patches.Rectangle((building.x - 0.5, building.y - 0.5), 1, 1,
-                               facecolor=colour, edgecolor="white", linewidth=lw)
+            patches.Rectangle(
+                (building.x - 0.5, building.y - 0.5),
+                1,
+                1,
+                facecolor=colour,
+                edgecolor="white",
+                linewidth=lw,
+            )
         )
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
+    if len(manager.agents) <= 25:
+        cmap = plt.get_cmap("tab20")
+        for agent in manager.agents:
+            colour = cmap(agent.id % 20)
+            ax.plot(agent.x, agent.y, "o", markersize=6, color=colour)
 
-    cmap = plt.get_cmap("tab20")
-    for agent in manager.agents:
-        colour = cmap(agent.id % 20)
-        ax.plot(agent.x, agent.y, "o", markersize=6, color=colour)
-
-        if len(manager.agents) <= 15:
-            if hasattr(agent, "path") and agent.path[agent.step :]:
-                path_x, path_y = zip(*agent.path[agent.step :])
-                ax.plot(path_x, path_y, "--", linewidth=1, color=colour)
+            if len(manager.agents) <= 15:
+                if hasattr(agent, "path") and agent.path[agent.step :]:
+                    path_x, path_y = zip(*agent.path[agent.step :])
+                    ax.plot(path_x, path_y, "--", linewidth=1, color=colour)
     return fig
