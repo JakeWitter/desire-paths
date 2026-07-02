@@ -1,0 +1,14 @@
+[project]
+name = "paths"
+version = "0.1.0"
+description = "A desire-path simulator built with Streamlit"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "ipython>=9.14.1",
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.6",
+    "pathfinding>=1.0.21",
+    "scipy>=1.18.0",
+    "streamlit>=1.58.0",
+]
