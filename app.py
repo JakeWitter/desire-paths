@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 from paths.world_manager import WorldManager
 from paths.visualise import world_draw
-from paths.cost_function import COST_Fs
 from paths.pathfinder import AStarBackend, FieldFlowBackend
 
 st.set_page_config(layout="wide")
@@ -76,7 +75,7 @@ with st.sidebar:
             manager.pathfinder.streamlit_controls()
         scale = st.slider("Cost reduction scale", 0.0, 8.0, 1.0)
         default_cost = st.slider("Default tile cost", 0.0, 100.0, 10.0)
-        cost_f_selected = st.selectbox("Cost function", list(COST_Fs.keys()))
+        alpha = st.slider("Cost function alpha", 0.1, 2.0, 1.0)
         path_degrade_factor = st.selectbox(
             "Path degrade factor",
             [0.8, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 1.0],
@@ -101,7 +100,7 @@ with st.sidebar:
         manager.agents = []
 
 manager.pathfinder.temperature = temperature
-manager.world.use_to_cost_f = COST_Fs[cost_f_selected]
+manager.world.alpha = alpha
 manager.world.cost_scale = scale
 manager.world.default_cost = default_cost
 manager.path_degrade_amt = path_degrade_factor

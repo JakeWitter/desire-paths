@@ -83,7 +83,8 @@ class WorldManager:
                 if not occupied.intersection(tiles):
                     break
         door_candidates = [
-            tile for tile in tiles
+            tile
+            for tile in tiles
             if ((tile[0] in [x, x + bw - 1]) or tile[1] in [y, y + bh - 1])
             and any(
                 (tile[0] + dx, tile[1] + dy) not in occupied

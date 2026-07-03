@@ -8,9 +8,7 @@
 ## Medium
 - Door facing and directed entry — door tile has a facing direction, agents can only enter from the entry tile (one directed edge in the pathfinding graph from entry→door). Requires directed edge support in FlowField graph construction and careful handling in A*. Simpler alternative: just make door walkable and drop the directional constraint.
 
-- More interesting buildings — buildings larger than a single tile. Buildings may touch as long as they don't violate placement rules:
-  - Whole footprint is impassable - can't overlap another building
-  - Entrances — each building gets one door tile on its perimeter. This placement requires the new door has at least one free cardinal neighbour, and the new footprint doesn't cover any existing door. Later buildings can collectively enclose a door into an unreachable courtyard — a full connectivity check would catch this?
+- Door accessibility — later-spawned buildings can block doors that were valid at spawn time. Needs a connectivity check or post-spawn validation.
 - Saved test scenarios - to show interesting behaviours. Potentially with parameters set to vary over time?
 - Buildings spawn near, but not on, roads
 - Busy building type — high attractiveness, higher spawn rate
@@ -18,7 +16,6 @@
 - Richer destination selection — weight targets by `attractiveness / distance ** beta` so agents prefer nearby buildings. Per-agent beta (drawn on spawn) gives a mix of local and long-range walkers. Seed buildings as natural hubs (high attractiveness) would drive inter-town paths
 
 ## Small
-- Sample `adventurousness` per agent from a distribution on spawn (e.g. uniform 0–2), giving a population mix of cautious and exploratory walkers. Range will be clearer after tuning global temperature.
 - Use 2D prefix sums (cumsum) for building spawn probability weighting — score candidate top-left positions by sum of prob over full footprint rather than just the top-left tile.
 - Nicely colours and colourpalette handling
 - Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
@@ -46,3 +43,5 @@
 - FlowField oscillations around 0 cost squares reduced by using 0.01 instead, and buildings are np.inf.
 - Per-agent noise field (standard normal, fixed at spawn) scaled by global temperature and per-agent adventurousness (currently 1.0). Both A* and FlowField backends respect it, giving genuine route diversity rather than step-level zigzag.
 - `recent_positions` deque per agent with fixed penalty for revisiting recent tiles, preventing agents cycling indefinitely in noise-created local minima.
+- Multi-tile buildings with random dimensions, perimeter door tile, centroid-based spawn distribution. Agents target door; unreachable targets die cleanly.
+- `adventurousness` sampled per agent from uniform 0–2 on spawn, giving a population mix of cautious and exploratory walkers.

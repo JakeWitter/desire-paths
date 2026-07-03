@@ -8,22 +8,22 @@ class GridWorld:
         width,
         height,
         default_cost=10.0,
-        use_to_cost_f=(lambda x: x),
         cost_scale=1.0,
+        alpha=1.0,
     ):
         self.width = width
         self.height = height
         self.default_cost = default_cost
-        self.use_to_cost_f = use_to_cost_f
         self.cost_scale = cost_scale
         self.uses = np.full((height, width), 0)
         self.grid = Grid(width=width, height=height)
+        self.alpha = alpha
         self._prev_costs = np.full((self.height, self.width), np.inf)
         self.update_costs([])
 
     def update_costs(self, buildings):
         self.costs = np.full((self.height, self.width), float(self.default_cost))
-        self.costs -= self.use_to_cost_f(self.uses) * self.cost_scale
+        self.costs -= self.uses**self.alpha * self.cost_scale
         self.costs = np.clip(self.costs, 1, None)
         for building in buildings:
             for tile_x, tile_y in building.tiles:
