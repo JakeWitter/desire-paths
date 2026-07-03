@@ -12,11 +12,11 @@
 - Saved test scenarios - to show interesting behaviours. Potentially with parameters set to vary over time?
 - Buildings spawn near, but not on, roads
 - Busy building type — high attractiveness, higher spawn rate
-- Per-agent temperature. Each agent could have its own temperature value (e.g. drawn from a distribution on spawn), so the population has a mix of cautious/predictable and exploratory/random walkers
 - Congestion penalty — add a small cost *increase* on currently used, or just very heavily used, tiles so agents seek alternatives. Caps road dominance but may just widen busy roads rather than divert to new ones
 - Richer destination selection — weight targets by `attractiveness / distance ** beta` so agents prefer nearby buildings. Per-agent beta (drawn on spawn) gives a mix of local and long-range walkers. Seed buildings as natural hubs (high attractiveness) would drive inter-town paths
 
 ## Small
+- Sample `adventurousness` per agent from a distribution on spawn (e.g. uniform 0–2), giving a population mix of cautious and exploratory walkers. Range will be clearer after tuning global temperature.
 - Nicely colours and colourpalette handling
 - Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
 - Keep agents when switching pathfinding backends.
@@ -41,3 +41,5 @@
 - FlowField: diagonal edges (weight cost*sqrt(2)) to fix cityblock routing and enable genuine corner-cutting
 - Vectorise FlowField graph construction (currently slow double loop)
 - FlowField oscillations around 0 cost squares reduced by using 0.01 instead, and buildings are np.inf.
+- Per-agent noise field (standard normal, fixed at spawn) scaled by global temperature and per-agent adventurousness (currently 1.0). Both A* and FlowField backends respect it, giving genuine route diversity rather than step-level zigzag.
+- `recent_positions` deque per agent with fixed penalty for revisiting recent tiles, preventing agents cycling indefinitely in noise-created local minima.
