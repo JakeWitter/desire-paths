@@ -39,7 +39,6 @@ class WorldManager:
         self.building_agent_rate = building_agent_rate
         self.time = 0
         self.next_building_time = np.random.exponential(1 / self.building_rate)
-        # self.next_agent_time = np.random.exponential(1 / self.agent_rate)
         self.path_degrade_every = path_degrade_every
         self.path_degrade_amt = path_degrade_amt
         self.min_agents = min_agents
@@ -58,6 +57,7 @@ class WorldManager:
         self, x: int | None = None, y: int | None = None, building_type: str = "norm"
     ):
         occupied = {tile for b in self.buildings for tile in b.tiles}
+        occupied.update((b.entry_x, b.entry_y) for b in self.buildings)
         if x is None or y is None:
             prob = building_spawn_prob(
                 self.world.width, self.world.height, self.buildings
@@ -82,21 +82,21 @@ class WorldManager:
                 tiles = [(x + w, y + h) for w, h in product(range(bw), range(bh))]
                 if not occupied.intersection(tiles):
                     break
-        door_candidates = [
-            tile
-            for tile in tiles
-            if ((tile[0] in [x, x + bw - 1]) or tile[1] in [y, y + bh - 1])
-            and any(
-                (tile[0] + dx, tile[1] + dy) not in occupied
-                and (tile[0] + dx, tile[1] + dy) not in tiles
-                and 0 <= tile[0] + dx < self.world.width
-                and 0 <= tile[1] + dy < self.world.height
-                for dx, dy in CARDINAL
-            )
-        ]
+        door_candidates = []
+        for tile in tiles:
+            if (tile[0] in [x, x + bw - 1]) or tile[1] in [y, y + bh - 1]:
+                for dx, dy in CARDINAL:
+                    if (
+                        ((tile[0] + dx, tile[1] + dy) not in occupied)
+                        and (tile[0] + dx, tile[1] + dy) not in tiles
+                        and 0 <= tile[0] + dx < self.world.width
+                        and 0 <= tile[1] + dy < self.world.height
+                    ):
+                        door_candidates.append((tile, (tile[0] + dx, tile[1] + dy)))
+
         if not door_candidates:
             return
-        door_x, door_y = choice(door_candidates)
+        (door_x, door_y), (entry_x, entry_y) = choice(door_candidates)
         attractiveness = 1.0 + np.random.exponential(1.0)
         building = Building(
             bw,
@@ -104,6 +104,8 @@ class WorldManager:
             tiles,
             door_x,
             door_y,
+            entry_x,
+            entry_y,
             self.building_agent_rate,
             self.time,
             self.agent_factor,

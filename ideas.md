@@ -18,7 +18,6 @@
 ## Small
 - Use 2D prefix sums (cumsum) for building spawn probability weighting — score candidate top-left positions by sum of prob over full footprint rather than just the top-left tile.
 - Nicely colours and colourpalette handling
-- Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
 - Keep agents when switching pathfinding backends.
 
 ## Done
@@ -45,3 +44,4 @@
 - `recent_positions` deque per agent with fixed penalty for revisiting recent tiles, preventing agents cycling indefinitely in noise-created local minima.
 - Multi-tile buildings with random dimensions, perimeter door tile, centroid-based spawn distribution. Agents target door; unreachable targets die cleanly.
 - `adventurousness` sampled per agent from uniform 0–2 on spawn, giving a population mix of cautious and exploratory walkers.
+- Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.

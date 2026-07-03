@@ -77,9 +77,6 @@ class AStarBackend(PathfinderBackend):
         start_node = noisy_grid.node(agent.x, agent.y)
         target_node = noisy_grid.node(agent.target_x, agent.target_y)
 
-        start_node.walkable = True
-        target_node.walkable = True
-
         # Initialize the A* Finder with diagonal movement enabled
         if self.diagonal:
             finder = AStarFinder(
@@ -175,9 +172,9 @@ class FieldFlowBackend(PathfinderBackend):
 
             self._fields = {}
             for b in buildings:
-                src = b.door_y * width + b.door_x
+                src = b.entry_y * width + b.entry_x
                 dist = csg.dijkstra(graph, indices=src)
-                self._fields[(b.door_x, b.door_y)] = dist.reshape(height, width)
+                self._fields[(b.entry_x, b.entry_y)] = dist.reshape(height, width)
 
     def next_step(self, agent) -> tuple[int, int] | None:
         height, width = self.world.height, self.world.width

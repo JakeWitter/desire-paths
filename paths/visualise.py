@@ -45,7 +45,9 @@ def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
                 linewidth=lw,
             )
         )
-        ax.plot(building.door_x, building.door_y, "o", markersize=3, color="white")
+        marker_x = building.door_x + 0.5 * (building.entry_x - building.door_x)
+        marker_y = building.door_y + 0.5 * (building.entry_y - building.door_y)
+        ax.plot(marker_x, marker_y, "o", markersize=3, color="white")
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
     if len(manager.agents) <= 60:
         cmap = plt.get_cmap("tab20")

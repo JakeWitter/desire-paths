@@ -10,6 +10,8 @@ class Building:
         tiles,
         door_x,
         door_y,
+        entry_x,
+        entry_y,
         agent_spawn_rate,
         current_time,
         global_agent_factor,
@@ -21,6 +23,8 @@ class Building:
         self.tiles = tiles
         self.door_x = door_x
         self.door_y = door_y
+        self.entry_x = entry_x
+        self.entry_y = entry_y
         self.agent_spawn_rate = agent_spawn_rate
         self.attractiveness = attractiveness
         self.set_next_agent_spawn(current_time, global_agent_factor)
