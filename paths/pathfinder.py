@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pathfinding.finder.a_star import AStarFinder
 from pathfinding.core.heuristic import octile, euclidean
 from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
 
 import streamlit as st
 
@@ -18,10 +19,10 @@ DIA_COST = np.sqrt(2)
 
 
 class PathfinderBackend(ABC):
+    temperature: float = 1.0
+
     @abstractmethod
-    def next_step(
-        self, agent_id, x, y, target_x, target_y, vx, vy
-    ) -> tuple[int, int] | None: ...
+    def next_step(self, agent) -> tuple[int, int] | None: ...
 
     @abstractmethod
     def update(self, costs, buildings) -> None: ...
@@ -39,41 +40,42 @@ class AStarBackend(PathfinderBackend):
         self.diagonal = diagonal
         self.recalculate_every = recalculate_every
         self._cache = dict()
+        self.temperature = 1.0
 
-    def next_step(
-        self, agent_id, x, y, target_x, target_y, vx, vy
-    ) -> tuple[int, int] | None:
-        if agent_id not in self._cache.keys():
-            path = self.calculate_path(x, y, target_x, target_y)
+    def next_step(self, agent) -> tuple[int, int] | None:
+        if agent.id not in self._cache.keys():
+            path = self.calculate_path(agent)
             if not path or len(path) < 2:
                 return None
-            self._cache[agent_id] = (path, 1)
+            self._cache[agent.id] = (path, 1)
             return (path[1].x, path[1].y)
 
-        path, step = self._cache[agent_id]
+        path, step = self._cache[agent.id]
         if step + 1 >= len(path):
             return None
         loc = path[step + 1]
 
         if step > 0 and step % self.recalculate_every == 0:
-            path = self.calculate_path(x, y, target_x, target_y)
+            path = self.calculate_path(agent)
             if not path:
                 return None
-            self._cache[agent_id] = (path, 1)
+            self._cache[agent.id] = (path, 1)
             return (path[1].x, path[1].y) if len(path) > 1 else None
 
-        self._cache[agent_id] = [path, step + 1]
+        self._cache[agent.id] = [path, step + 1]
         return (loc.x, loc.y)
 
-    def calculate_path(self, x, y, target_x, target_y):
-        self.world.grid.cleanup()
+    def calculate_path(self, agent):
+        # Factor in agent specific noise
+        noisy_costs = (
+            self.world.costs
+            + self.temperature * agent.adventurousness * agent.noise_field
+        )
+        noisy_costs[self.world.costs == 0] = 0
+        noisy_grid = Grid(matrix=noisy_costs)
 
-        start_node = self.world.grid.node(x, y)
-        target_node = self.world.grid.node(target_x, target_y)
-
-        # Store original weights for potential buildings at start/end nodes
-        original_start_walkable = start_node.walkable
-        original_target_walkable = target_node.walkable
+        start_node = noisy_grid.node(agent.x, agent.y)
+        target_node = noisy_grid.node(agent.target_x, agent.target_y)
 
         start_node.walkable = True
         target_node.walkable = True
@@ -88,12 +90,9 @@ class AStarBackend(PathfinderBackend):
             finder = AStarFinder(heuristic=euclidean)
 
         try:
-            path, _ = finder.find_path(start_node, target_node, self.world.grid)
+            path, _ = finder.find_path(start_node, target_node, noisy_grid)
         except AttributeError:
             path = []
-
-        start_node.walkable = original_start_walkable
-        target_node.walkable = original_target_walkable
 
         return path
 
@@ -179,23 +178,28 @@ class FieldFlowBackend(PathfinderBackend):
                 dist = csg.dijkstra(graph, indices=src)
                 self._fields[(b.x, b.y)] = dist.reshape(height, width)
 
-    def next_step(
-        self, agent_id, x, y, target_x, target_y, vx, vy
-    ) -> tuple[int, int] | None:
+    def next_step(self, agent) -> tuple[int, int] | None:
         height, width = self.world.height, self.world.width
 
-        if (target_x, target_y) not in self._fields.keys():
+        if (agent.target_x, agent.target_y) not in self._fields.keys():
             return None
 
-        if (x, y) == (target_x, target_y):
+        if (agent.x, agent.y) == (agent.target_x, agent.target_y):
             return None
 
         neighbours = []
 
         for dx, dy in self.dxys:
-            nx, ny = x + dx, y + dy
+            nx, ny = agent.x + dx, agent.y + dy
             if 0 <= nx < width and 0 <= ny < height:
-                cost = self._fields[(target_x, target_y)][ny, nx]
+                cost = self._fields[(agent.target_x, agent.target_y)][ny, nx]
+                if cost == 0:
+                    return (nx, ny)
+                cost += (
+                    self.temperature * agent.adventurousness * agent.noise_field[ny, nx]
+                )
+                if (nx, ny) in agent.recent_positions:
+                    cost += 10.0
                 neighbours.append(((nx, ny), cost))
         if not neighbours:
             return None
@@ -203,26 +207,15 @@ class FieldFlowBackend(PathfinderBackend):
         positions, _ = zip(*neighbours)
         mom_costs = []
         for pos, cost in neighbours:
-            dx, dy = pos[0] - x, pos[1] - y
-            dot = dx * vx + dy * vy
+            dx, dy = pos[0] - agent.x, pos[1] - agent.y
+            dot = dx * agent.vx + dy * agent.vy
             mom_costs.append(cost - self.momentum_weight * dot)
 
         costs = np.array(mom_costs)
-        if self.temperature == 0:
-            return positions[np.argmin(costs)]
-        else:
-            costs -= costs.min()
-            weights = np.exp(-costs / self.temperature)
-            weights = np.where(np.isfinite(weights), weights, 0.0)
-            if weights.sum() == 0:
-                return positions[np.argmin(costs)]
-            weights /= weights.sum()
-            idx = np.random.choice(len(positions), p=weights)
-            return positions[idx]
+        return positions[np.argmin(costs)]
 
     def streamlit_controls(self) -> None:
         self.recalculate_every = st.slider(
             "Recalculate fields every:", 1, 50, self.recalculate_every
         )
-        self.temperature = st.slider("Temperature", 0.0, 5.0, self.temperature)
         self.momentum_weight = st.slider("Momentum weight", 0.0, 5.0, 0.5)

@@ -47,6 +47,7 @@ with st.sidebar:
     # st.divider()
 
     with st.expander("Path & cost"):
+        temperature = st.slider("Temperature", 0.0, 5.0, 1.0)
         with st.expander("Pathfinding"):
             current_type = (
                 "AStar" if isinstance(manager.pathfinder, AStarBackend) else "FlowField"
@@ -75,7 +76,7 @@ with st.sidebar:
         path_degrade_factor = st.selectbox(
             "Path degrade factor",
             [0.8, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 1.0],
-            index=3,
+            index=5,
         )
 
     with st.expander("Buildings"):
@@ -95,6 +96,7 @@ with st.sidebar:
     if st.button("Delete all agents", use_container_width=True):
         manager.agents = []
 
+manager.pathfinder.temperature = temperature
 manager.world.use_to_cost_f = COST_Fs[cost_f_selected]
 manager.world.cost_scale = scale
 manager.world.default_cost = default_cost

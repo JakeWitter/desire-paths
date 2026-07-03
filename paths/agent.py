@@ -5,6 +5,8 @@ from .building import Building
 from .pathfinder import PathfinderBackend
 
 from random import randint
+import numpy as np
+from collections import deque
 
 
 class Agent:
@@ -27,6 +29,11 @@ class Agent:
         self.vx = 0
         self.vy = 0
         self.alpha = alpha
+        self.noise_field = np.random.default_rng().standard_normal(
+            (world.height, world.width)
+        )
+        self.adventurousness = 1.0
+        self.recent_positions = deque(maxlen=5)
 
     @classmethod
     def from_buildings(
@@ -48,9 +55,7 @@ class Agent:
         return agent
 
     def move(self):
-        result = self.pathfinder.next_step(
-            self.id, self.x, self.y, self.target_x, self.target_y, self.vx, self.vy
-        )
+        result = self.pathfinder.next_step(self)
         if result is None:
             self.alive = False
         else:
@@ -59,3 +64,4 @@ class Agent:
             self.vx = self.alpha * dx + (1 - self.alpha) * self.vx
             self.vy = self.alpha * dy + (1 - self.alpha) * self.vy
             self.x, self.y = result
+            self.recent_positions.append((self.x, self.y))
