@@ -6,6 +6,8 @@
 - Simulation on a separate process from Streamlit
 
 ## Medium
+- Door facing and directed entry — door tile has a facing direction, agents can only enter from the entry tile (one directed edge in the pathfinding graph from entry→door). Requires directed edge support in FlowField graph construction and careful handling in A*. Simpler alternative: just make door walkable and drop the directional constraint.
+
 - More interesting buildings — buildings larger than a single tile. Buildings may touch as long as they don't violate placement rules:
   - Whole footprint is impassable - can't overlap another building
   - Entrances — each building gets one door tile on its perimeter. This placement requires the new door has at least one free cardinal neighbour, and the new footprint doesn't cover any existing door. Later buildings can collectively enclose a door into an unreachable courtyard — a full connectivity check would catch this?
@@ -17,6 +19,7 @@
 
 ## Small
 - Sample `adventurousness` per agent from a distribution on spawn (e.g. uniform 0–2), giving a population mix of cautious and exploratory walkers. Range will be clearer after tuning global temperature.
+- Use 2D prefix sums (cumsum) for building spawn probability weighting — score candidate top-left positions by sum of prob over full footprint rather than just the top-left tile.
 - Nicely colours and colourpalette handling
 - Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
 - Keep agents when switching pathfinding backends.

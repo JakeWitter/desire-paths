@@ -58,11 +58,20 @@ def building_spawn_prob(
 ):
     distrs = [uniform()]
     for building in buildings:
-        distrs.append(gaussian(building.x, building.y, -repulsion, repulsion_sigma))
-        distrs.append(gaussian(building.x, building.y, attraction, attraction_sigma))
+        distrs.append(
+            gaussian(
+                building.centroid_x, building.centroid_y, -repulsion, repulsion_sigma
+            )
+        )
+        distrs.append(
+            gaussian(
+                building.centroid_x, building.centroid_y, attraction, attraction_sigma
+            )
+        )
 
     prob = sum(d(width, height) for d in distrs)
     prob = np.clip(prob, 0, None)
     for building in buildings:
-        prob[building.y, building.x] = 0
+        for tile in building.tiles:
+            prob[tile[1], tile[0]] = 0
     return prob

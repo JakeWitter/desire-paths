@@ -31,18 +31,23 @@ def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
         normalised = min(building.attractiveness / max_attractiveness, 1.0)
         t = min(manager.attractiveness_scale / 5.0, 1.0)
         lw = 0.2 + 2.3 * normalised * t
+
+        min_x = min(x for x, _ in building.tiles)
+        min_y = min(y for _, y in building.tiles)
+
         ax.add_patch(
             patches.Rectangle(
-                (building.x - 0.5, building.y - 0.5),
-                1,
-                1,
+                (min_x - 0.5, min_y - 0.5),
+                building.width,
+                building.height,
                 facecolor=colour,
                 edgecolor="white",
                 linewidth=lw,
             )
         )
+        ax.plot(building.door_x, building.door_y, "o", markersize=3, color="white")
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
-    if len(manager.agents) <= 40:
+    if len(manager.agents) <= 60:
         cmap = plt.get_cmap("tab20")
         for agent in manager.agents:
             colour = cmap(agent.id % 20)

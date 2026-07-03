@@ -1,11 +1,12 @@
 import numpy as np
-from random import sample
+from random import sample, choice
+from itertools import product
 
 from .grid_world import GridWorld
 from .agent import Agent
 from .building import Building
 from .distributions import building_spawn_prob, seed_positions
-from .pathfinder import PathfinderBackend, AStarBackend
+from .pathfinder import PathfinderBackend, AStarBackend, CARDINAL
 
 
 class WorldManager:
@@ -56,18 +57,52 @@ class WorldManager:
     def spawn_building(
         self, x: int | None = None, y: int | None = None, building_type: str = "norm"
     ):
+        occupied = {tile for b in self.buildings for tile in b.tiles}
         if x is None or y is None:
             prob = building_spawn_prob(
                 self.world.width, self.world.height, self.buildings
             )
-            flat = prob.flatten()
-            flat /= flat.sum()
-            idx = np.random.choice(len(flat), p=flat)
-            y, x = divmod(idx, self.world.width)
+            ys, xs = np.mgrid[0 : self.world.height, 0 : self.world.width]
+            while True:
+                bw, bh = (np.random.randint(1, 5), np.random.randint(1, 5))
+                valid_mask = (xs <= self.world.width - bw) & (
+                    ys <= self.world.height - bh
+                )
+                valid = prob * valid_mask
+                flat = valid.flatten()
+                flat /= flat.sum()
+                idx = np.random.choice(len(flat), p=flat)
+                y, x = divmod(idx, self.world.width)
+                tiles = [(x + w, y + h) for w, h in product(range(bw), range(bh))]
+                if not occupied.intersection(tiles):
+                    break
+        else:
+            while True:
+                bw, bh = (np.random.randint(1, 5), np.random.randint(1, 5))
+                tiles = [(x + w, y + h) for w, h in product(range(bw), range(bh))]
+                if not occupied.intersection(tiles):
+                    break
+        door_candidates = [
+            tile for tile in tiles
+            if ((tile[0] in [x, x + bw - 1]) or tile[1] in [y, y + bh - 1])
+            and any(
+                (tile[0] + dx, tile[1] + dy) not in occupied
+                and (tile[0] + dx, tile[1] + dy) not in tiles
+                and 0 <= tile[0] + dx < self.world.width
+                and 0 <= tile[1] + dy < self.world.height
+                for dx, dy in CARDINAL
+            )
+        ]
+        if not door_candidates:
+            return
+        door_x, door_y = choice(door_candidates)
         attractiveness = 1.0 + np.random.exponential(1.0)
         building = Building(
-            int(x),
-            int(y),
+            bw,
+            bh,
+            tiles,
+            door_x,
+            door_y,
             self.building_agent_rate,
             self.time,
             self.agent_factor,

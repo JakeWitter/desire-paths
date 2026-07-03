@@ -139,7 +139,8 @@ class FieldFlowBackend(PathfinderBackend):
             n = height * width
             costs = np.maximum(costs, 0.01).copy()
             for b in buildings:
-                costs[b.y, b.x] = np.inf
+                for tile_x, tile_y in b.tiles:
+                    costs[tile_y, tile_x] = np.inf
             rows = []
             cols = []
             data = []
@@ -161,7 +162,7 @@ class FieldFlowBackend(PathfinderBackend):
                     valid = (costs[src_y, src_x + dx] < np.inf) & (
                         costs[src_y + dy, src_x] < np.inf
                     )
-                    weights = weights * valid
+                    weights[~valid] = np.inf
 
                 rows.append(src.flatten())
                 cols.append(dst.flatten())
@@ -174,9 +175,9 @@ class FieldFlowBackend(PathfinderBackend):
 
             self._fields = {}
             for b in buildings:
-                src = b.y * width + b.x
+                src = b.door_y * width + b.door_x
                 dist = csg.dijkstra(graph, indices=src)
-                self._fields[(b.x, b.y)] = dist.reshape(height, width)
+                self._fields[(b.door_x, b.door_y)] = dist.reshape(height, width)
 
     def next_step(self, agent) -> tuple[int, int] | None:
         height, width = self.world.height, self.world.width
@@ -192,14 +193,24 @@ class FieldFlowBackend(PathfinderBackend):
         for dx, dy in self.dxys:
             nx, ny = agent.x + dx, agent.y + dy
             if 0 <= nx < width and 0 <= ny < height:
+                if (nx, ny) == (agent.target_x, agent.target_y):
+                    return (nx, ny)
+                if dx != 0 and dy != 0:
+                    if (
+                        self.world.costs[agent.y, nx] == 0
+                        or self.world.costs[ny, agent.x] == 0
+                    ):
+                        continue
                 cost = self._fields[(agent.target_x, agent.target_y)][ny, nx]
+                if not np.isfinite(cost):
+                    continue
                 if cost == 0:
                     return (nx, ny)
                 cost += (
                     self.temperature * agent.adventurousness * agent.noise_field[ny, nx]
                 )
                 if (nx, ny) in agent.recent_positions:
-                    cost += 10.0
+                    cost += 5000.0
                 neighbours.append(((nx, ny), cost))
         if not neighbours:
             return None

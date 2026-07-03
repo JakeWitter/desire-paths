@@ -10,9 +10,10 @@ from paths.pathfinder import AStarBackend, FieldFlowBackend
 
 st.set_page_config(layout="wide")
 
-GRID_WIDTH = 150
-GRID_HEIGHT = 95
+GRID_WIDTH = 100
+GRID_HEIGHT = 60
 PATHFINDING_OPTIONS = ["AStar", "FlowField"]
+
 
 if "manager" not in st.session_state:
     st.session_state.manager = WorldManager(
@@ -34,13 +35,16 @@ manager = st.session_state.manager
 with st.sidebar:
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Start/Stop", use_container_width=True):
+        label = "Stop" if st.session_state.running else "Start"
+        if st.button(label, use_container_width=True):
             st.session_state.running = not st.session_state.running
+            st.rerun()
     with col2:
         if st.button("Reset", use_container_width=True):
             st.session_state.manager = WorldManager(
                 width=GRID_WIDTH, height=GRID_HEIGHT
             )
+            st.rerun()
     steps_per_frame = st.slider("Steps per frame", 1, 200, 1)
     show_spawn_prob = st.checkbox("Show spawn probability")
 
@@ -71,7 +75,7 @@ with st.sidebar:
                 manager.agents = []
             manager.pathfinder.streamlit_controls()
         scale = st.slider("Cost reduction scale", 0.0, 8.0, 1.0)
-        default_cost = st.slider("Default tile cost", 0.0, 100.0, 20.0)
+        default_cost = st.slider("Default tile cost", 0.0, 100.0, 10.0)
         cost_f_selected = st.selectbox("Cost function", list(COST_Fs.keys()))
         path_degrade_factor = st.selectbox(
             "Path degrade factor",
@@ -120,6 +124,8 @@ st.caption(
     f"Time: {manager.time} | Buildings: {len(manager.buildings)} | Agents: {len(manager.agents)} | Next building: {int(manager.next_building_time - manager.time)} steps"
 )
 st.caption(f"Seed positions: {manager.seed_positions}")
+oldest = sorted(manager.agents, key=lambda a: a.age)[-5:]
+st.caption(f"Oldest agents: {[(a.age, round(a.adventurousness, 3)) for a in oldest]}")
 
 if st.session_state.running:
     t0 = time.perf_counter()

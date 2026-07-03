@@ -4,7 +4,7 @@ from .grid_world import GridWorld
 from .building import Building
 from .pathfinder import PathfinderBackend
 
-from random import randint
+from random import randint, uniform
 import numpy as np
 from collections import deque
 
@@ -32,8 +32,9 @@ class Agent:
         self.noise_field = np.random.default_rng().standard_normal(
             (world.height, world.width)
         )
-        self.adventurousness = 1.0
-        self.recent_positions = deque(maxlen=5)
+        self.adventurousness = uniform(0, 2)
+        self.recent_positions = deque(maxlen=100)
+        self.age = 0
 
     @classmethod
     def from_buildings(
@@ -47,14 +48,17 @@ class Agent:
         agent = cls(
             world,
             pathfinder,
-            x=b1.x,
-            y=b1.y,
-            target_x=b2.x,
-            target_y=b2.y,
+            x=b1.door_x,
+            y=b1.door_y,
+            target_x=b2.door_x,
+            target_y=b2.door_y,
         )
         return agent
 
     def move(self):
+        self.age += 1
+        if self.age > 300 and self.adventurousness <= 0.2:
+            self.alive = False
         result = self.pathfinder.next_step(self)
         if result is None:
             self.alive = False
@@ -64,4 +68,8 @@ class Agent:
             self.vx = self.alpha * dx + (1 - self.alpha) * self.vx
             self.vy = self.alpha * dy + (1 - self.alpha) * self.vy
             self.x, self.y = result
+            if (self.x, self.y) in self.recent_positions:
+                self.adventurousness *= 0.98
+            else:
+                self.adventurousness *= 0.999
             self.recent_positions.append((self.x, self.y))

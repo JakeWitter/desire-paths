@@ -26,7 +26,8 @@ class GridWorld:
         self.costs -= self.use_to_cost_f(self.uses) * self.cost_scale
         self.costs = np.clip(self.costs, 1, None)
         for building in buildings:
-            self.costs[building.y, building.x] = 0
+            for tile_x, tile_y in building.tiles:
+                self.costs[tile_y, tile_x] = 0
         self.grid.cleanup()
 
         changed_ys, changed_xs = np.where(self.costs != self._prev_costs)
