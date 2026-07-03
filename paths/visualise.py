@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
+
+from paths.pathfinder import AStarBackend
 from .world_manager import WorldManager
 from .distributions import building_spawn_prob
 
@@ -40,14 +42,19 @@ def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
             )
         )
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
-    if len(manager.agents) <= 25:
+    if len(manager.agents) <= 40:
         cmap = plt.get_cmap("tab20")
         for agent in manager.agents:
             colour = cmap(agent.id % 20)
             ax.plot(agent.x, agent.y, "o", markersize=6, color=colour)
 
             if len(manager.agents) <= 15:
-                if hasattr(agent, "path") and agent.path[agent.step :]:
-                    path_x, path_y = zip(*agent.path[agent.step :])
+                if (
+                    isinstance(manager.pathfinder, AStarBackend)
+                    and agent.id in manager.pathfinder._cache
+                ):
+                    path, step = manager.pathfinder._cache[agent.id]
+                    path_x = [node.x for node in path[step:]]
+                    path_y = [node.y for node in path[step:]]
                     ax.plot(path_x, path_y, "--", linewidth=1, color=colour)
     return fig
