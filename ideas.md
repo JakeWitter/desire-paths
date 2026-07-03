@@ -19,6 +19,7 @@
 ## Small
 - Nicely colours and colourpalette handling
 - Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
+- Keep agents when switching pathfinding backends.
 
 ## Done
 - Sliders for parameters
