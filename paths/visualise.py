@@ -9,14 +9,16 @@ from .distributions import building_spawn_prob
 _building_cmap = LinearSegmentedColormap.from_list("building", ["black", "red"])
 
 
-def world_draw(manager: WorldManager, show_spawn_prob: bool = False):
+def world_draw(manager: WorldManager, view: str = "Paths"):
     fig, ax = plt.subplots()
-    if show_spawn_prob:
+    if view == "Paths":
+        data = manager.world.costs
+    elif view == "Bld. prob":
         data = building_spawn_prob(
             manager.world.width, manager.world.height, manager.buildings
         )
     else:
-        data = manager.world.costs
+        data = manager.world.elevation
     ax.imshow(data, cmap="YlGn", origin="upper")
     ax.set_aspect("equal")
     ax.set_xticks([])

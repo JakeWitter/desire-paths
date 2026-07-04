@@ -38,7 +38,8 @@ class Agent:
         self.noise_field = np.random.default_rng().standard_normal(
             (world.height, world.width)
         )
-        self.adventurousness = uniform(0, 2)
+        self.adventurousness = uniform(0.5, 4)
+        self.temperature = uniform(0.5, 1.5)
         self.recent_positions = deque(maxlen=100)
         self.age = 0
         self._has_exited = False
@@ -68,7 +69,7 @@ class Agent:
 
     def move(self):
         self.age += 1
-        if self.age > 300 and self.adventurousness <= 0.2:
+        if self.age > 300 and self.temperature <= 0.1:
             self.alive = False
 
         if not self._has_exited:
@@ -95,7 +96,7 @@ class Agent:
             self.vy = self.mom_alpha * dy + (1 - self.mom_alpha) * self.vy
             self.x, self.y = result
             if (self.x, self.y) in self.recent_positions:
-                self.adventurousness *= 0.98
+                self.temperature *= 0.98
             else:
-                self.adventurousness *= 0.999
+                self.temperature *= 0.999
             self.recent_positions.append((self.x, self.y))

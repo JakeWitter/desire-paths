@@ -44,13 +44,17 @@ with st.sidebar:
                 width=GRID_WIDTH, height=GRID_HEIGHT
             )
             st.rerun()
+    st.session_state.view = st.radio(
+        "View", ["Paths", "Height", "Bld. prob"], horizontal=True
+    )
     steps_per_frame = st.slider("Steps per frame", 1, 200, 1)
-    show_spawn_prob = st.checkbox("Show spawn probability")
 
     # st.divider()
 
     with st.expander("Path & cost"):
         temperature = st.slider("Temperature", 0.0, 5.0, 1.0)
+        slope_scale = st.slider("Slope scale", 0.0, 1000.0, 0.0)
+        advent_scale = st.slider("Adventurousness scale", 0.1, 10.0, 1.0)
         with st.expander("Pathfinding"):
             current_type = (
                 "AStar" if isinstance(manager.pathfinder, AStarBackend) else "FlowField"
@@ -93,13 +97,18 @@ with st.sidebar:
     with col1:
         if st.button("Spawn building", use_container_width=True):
             manager.spawn_building()
+        if st.button("Delete all agents", use_container_width=True):
+            manager.agents = []
     with col2:
         if st.button("Spawn agent", use_container_width=True):
             manager.spawn_agent()
-    if st.button("Delete all agents", use_container_width=True):
-        manager.agents = []
+        if st.button("Reset uses", use_container_width=True):
+            manager.world.uses = np.full((GRID_HEIGHT, GRID_WIDTH), 0)
+
 
 manager.pathfinder.temperature = temperature
+manager.pathfinder.slope_scale = slope_scale
+manager.pathfinder.adventurousness = advent_scale
 manager.world.alpha = alpha
 manager.world.cost_scale = scale
 manager.world.default_cost = default_cost
@@ -113,7 +122,7 @@ if agent_factor != manager.agent_factor:
         building.set_next_agent_spawn(manager.time, manager.agent_factor)
 
 t0 = time.perf_counter()
-fig = world_draw(manager, show_spawn_prob=show_spawn_prob)
+fig = world_draw(manager, view=st.session_state.view)
 t_draw = time.perf_counter() - t0
 
 st.pyplot(fig, width="stretch")

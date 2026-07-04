@@ -20,6 +20,8 @@ DIA_COST = np.sqrt(2)
 
 class PathfinderBackend(ABC):
     temperature: float = 1.0
+    slope_scale: float = 1.0
+    adventurousness: float = 1.0
 
     @abstractmethod
     def next_step(self, agent) -> tuple[int, int] | None: ...
@@ -66,10 +68,13 @@ class AStarBackend(PathfinderBackend):
         return (loc.x, loc.y)
 
     def calculate_path(self, agent):
-        # Factor in agent specific noise
+        combined_adv = agent.adventurousness * self.adventurousness
+        t = np.clip(1 - 1 / combined_adv, 0, 1)
+        flat_costs = (1 - t) * self.world.costs + t
         noisy_costs = (
-            self.world.costs
-            + self.temperature * agent.adventurousness * agent.noise_field
+            flat_costs
+            + self.temperature * agent.temperature * agent.noise_field
+            + self.slope_scale * self.world.elevation_grad_mag
         )
         noisy_costs[self.world.costs == 0] = 0
         noisy_grid = Grid(matrix=noisy_costs)
@@ -154,7 +159,11 @@ class FieldFlowBackend(PathfinderBackend):
                 scale = DIA_COST if dx != 0 and dy != 0 else 1.0
                 src = src_y * width + src_x
                 dst = dst_y * width + dst_x
-                weights = costs[dst_y, dst_x] * scale
+                weights = costs[dst_y, dst_x] * scale + self.slope_scale * (
+                    self.world.elevation[dst_y, dst_x]
+                    - self.world.elevation[src_y, src_x]
+                )
+                weights = np.maximum(weights, 0.01)
                 if dx != 0 and dy != 0:
                     valid = (costs[src_y, src_x + dx] < np.inf) & (
                         costs[src_y + dy, src_x] < np.inf
@@ -198,14 +207,14 @@ class FieldFlowBackend(PathfinderBackend):
                         or self.world.costs[ny, agent.x] == 0
                     ):
                         continue
-                cost = self._fields[(agent.target_x, agent.target_y)][ny, nx]
+                combined_adv = agent.adventurousness * self.adventurousness
+                t = np.clip(1 - 1 / combined_adv, 0, 1)
+                cost = (1 - t) * self._fields[(agent.target_x, agent.target_y)][ny, nx] + t
                 if not np.isfinite(cost):
                     continue
                 if cost == 0:
                     return (nx, ny)
-                cost += (
-                    self.temperature * agent.adventurousness * agent.noise_field[ny, nx]
-                )
+                cost += self.temperature * agent.temperature * agent.noise_field[ny, nx]
                 if (nx, ny) in agent.recent_positions:
                     cost += 5000.0
                 neighbours.append(((nx, ny), cost))

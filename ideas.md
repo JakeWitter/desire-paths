@@ -2,12 +2,11 @@
 
 ## Large / future
 - Directly interactable plot
-- Geographic features - height + slope, difficult terrain
+- Height map — per-tile elevation, slope-based asymmetric movement cost (uphill expensive, downhill cheap), steep slopes block building placement
+- Terrain regions — per-tile base cost layer (forest, marsh, open ground etc.), stacks with wear model, shapes where desire paths naturally form
 - Simulation on a separate process from Streamlit
 
 ## Medium
-- Door facing and directed entry — door tile has a facing direction, agents can only enter from the entry tile (one directed edge in the pathfinding graph from entry→door). Requires directed edge support in FlowField graph construction and careful handling in A*. Simpler alternative: just make door walkable and drop the directional constraint.
-
 - Door accessibility — later-spawned buildings can block doors that were valid at spawn time. Needs a connectivity check or post-spawn validation.
 - Saved test scenarios - to show interesting behaviours. Potentially with parameters set to vary over time?
 - Buildings spawn near, but not on, roads
@@ -44,4 +43,6 @@
 - `recent_positions` deque per agent with fixed penalty for revisiting recent tiles, preventing agents cycling indefinitely in noise-created local minima.
 - Multi-tile buildings with random dimensions, perimeter door tile, centroid-based spawn distribution. Agents target door; unreachable targets die cleanly.
 - `adventurousness` sampled per agent from uniform 0–2 on spawn, giving a population mix of cautious and exploratory walkers.
+- Smooth per-agent noise field — replace standard normal per-tile noise with low-frequency smooth noise (Perlin or gaussian-blurred), so agents have broad regional preferences rather than step-level jitter. Pairs well with terrain generation.
 - Replace cost function dropdown with a single `alpha` slider — `uses ** alpha` where alpha=1 is linear, 0.5 is sqrt. Higher alpha (>1) concentrates paths and lower alpha spreads them.
+- Door facing and directed entry — door tile has a facing direction, agents can only enter from the entry tile (one directed edge in the pathfinding graph from entry→door). Requires directed edge support in FlowField graph construction and careful handling in A*.
