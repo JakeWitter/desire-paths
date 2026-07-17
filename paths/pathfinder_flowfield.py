@@ -60,8 +60,8 @@ class FlowFieldBackend(PathfinderBackend):
             src = src_y * width + src_x
             dst = dst_y * width + dst_x
             elevation_cost = self.slope_edge_cost((src_x, src_y), (dst_x, dst_y))
-            weights = costs[dst_y, dst_x] * scale + elevation_cost
-            weights = np.maximum(weights, 0.01)
+            weights = costs[dst_y, dst_x] * scale * np.exp(elevation_cost)
+            weights = np.maximum(weights, 1e-9)
             if dx != 0 and dy != 0:
                 valid = (costs[src_y, src_x + dx] < np.inf) & (
                     costs[src_y + dy, src_x] < np.inf

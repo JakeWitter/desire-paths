@@ -19,8 +19,8 @@ def render_path_ui(manager):
     with st.expander("Path & cost"):
         # general variables
         pf.temperature = st.slider("Temperature", 0.0, 5.0, 1.0)
-        pf.slope_scale = st.slider("Slope scale", 0.0, 1000.0, 25.0)
-        pf.adventurousness = st.slider("Adventurousness scale", 0.1, 10.0, 1.0)
+        pf.slope_scale = st.slider("Slope scale", 0.0, 1000.0, 35.0)
+        pf.adventurousness = st.slider("Adventurousness scale", 0.0, 10.0, 0.0)
 
         # backend specific
         with st.expander("Pathfinding"):
@@ -37,7 +37,7 @@ def render_path_ui(manager):
                 pf.recalculate_every = st.slider(
                     "Recalculate fields every:", 1, 50, pf.recalculate_every
                 )
-                pf.momentum_weight = st.slider("Momentum weight", 0.0, 5.0, 0.5)
+                pf.momentum_weight = st.slider("Momentum weight", 0.0, 5.0, 0.0)
             elif pf.pathfinder_type == PathfinderType.ASTAR:
                 pf.recalculate_every = st.slider(
                     "Recalculate paths every:", 1, 50, pf.recalculate_every

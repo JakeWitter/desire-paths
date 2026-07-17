@@ -1,5 +1,7 @@
 import numpy as np
-from .distributions import generate_hill
+
+# from .distributions import generate_hill
+from .perlin import octaves
 
 
 class GridWorld:
@@ -19,10 +21,11 @@ class GridWorld:
         self.elevation = np.full((height, width), 0.0)
         self.alpha = alpha
         self.update_costs([])
-        hill_sigma = 10
-        self.elevation += generate_hill(
-            (int(width / 2), int(height / 2)), (width, height), hill_sigma
-        )
+        # hill_sigma = 10
+        # # self.elevation += generate_hill(
+        #     (int(width / 2), int(height / 2)), (width, height), hill_sigma
+        # )
+        self.elevation = octaves((width, height), [250, 80, 4], [4, 1, 0.03])
         grad_y, grad_x = np.gradient(self.elevation)
         self.elevation_grad_mag = np.sqrt(grad_x**2 + grad_y**2)
 
