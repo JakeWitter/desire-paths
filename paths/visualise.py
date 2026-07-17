@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
 
-from paths.pathfinder import AStarBackend
+from .pathfinder_astar import AStarBackend
 from .world_manager import WorldManager
-from .distributions import building_spawn_prob
+from .distributions import building_spawn_field
 
 _building_cmap = LinearSegmentedColormap.from_list("building", ["black", "red"])
 
@@ -14,7 +14,7 @@ def world_draw(manager: WorldManager, view: str = "Paths"):
     if view == "Paths":
         data = manager.world.costs
     elif view == "Bld. prob":
-        data = building_spawn_prob(
+        data = building_spawn_field(
             manager.world.width, manager.world.height, manager.buildings
         )
     else:
@@ -47,8 +47,10 @@ def world_draw(manager: WorldManager, view: str = "Paths"):
                 linewidth=lw,
             )
         )
-        marker_x = building.door_x + 0.5 * (building.entry_x - building.door_x)
-        marker_y = building.door_y + 0.5 * (building.entry_y - building.door_y)
+        door_x, door_y = building.door
+        entry_x, entry_y = building.entry
+        marker_x = door_x + 0.5 * (entry_x - door_x)
+        marker_y = door_y + 0.5 * (entry_y - door_y)
         ax.plot(marker_x, marker_y, "o", markersize=3, color="white")
     # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
     if len(manager.agents) <= 60:
