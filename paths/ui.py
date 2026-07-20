@@ -11,7 +11,21 @@ def render_global_ui():
 
 
 def render_visualise_ui():
-    st.radio("View", ["Paths", "Height", "Bld. prob"], horizontal=True, key="view")
+    with st.expander("Visualisation"):
+        st.radio(
+            "View",
+            ["Costs", "Uses", "Elev.", "Elev. grad", "Bld. prob", "Cost breakdown"],
+            key="view",
+        )
+        if st.session_state.view == "Cost breakdown":
+            tgl_slope = st.toggle("Slope")
+            tgl_costs = st.toggle("Use costs")
+            tgl_noise = st.toggle("Agent noise")
+            st.session_state.breakdown["slope"] = tgl_slope
+            st.session_state.breakdown["use costs"] = tgl_costs
+            st.session_state.breakdown["agent noise"] = tgl_noise
+        else:
+            st.session_state.breakdown = {"use costs": True}
 
 
 def render_path_ui(manager):
@@ -19,8 +33,8 @@ def render_path_ui(manager):
     with st.expander("Path & cost"):
         # general variables
         pf.temperature = st.slider("Temperature", 0.0, 5.0, 1.0)
-        pf.slope_scale = st.slider("Slope scale", 0.0, 1000.0, 35.0)
-        pf.adventurousness = st.slider("Adventurousness scale", 0.0, 10.0, 0.0)
+        pf.slope_scale = st.slider("Slope scale", 0.0, 200.0, 35.0)
+        pf.adventurousness = st.slider("Adventurousness scale", 0.0, 10.0, 0.0001)
 
         # backend specific
         with st.expander("Pathfinding"):

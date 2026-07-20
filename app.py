@@ -20,7 +20,6 @@ t0 = time.perf_counter()
 if "grid_w" not in st.session_state or "grid_h" not in st.session_state:
     st.session_state.grid_w = 320
     st.session_state.grid_h = 160
-
 if "manager" not in st.session_state:
     st.session_state.manager = WorldManager.new_default(
         width=st.session_state.grid_w, height=st.session_state.grid_h
@@ -31,6 +30,8 @@ if "steps" not in st.session_state:
     st.session_state.steps = 1
 if "timings" not in st.session_state:
     st.session_state.timings = {"update": [], "draw": [], "ui": []}
+if "breakdown" not in st.session_state:
+    st.session_state.breakdown = {"use costs": True}
 
 manager = st.session_state.manager
 
@@ -58,7 +59,9 @@ with st.sidebar:
 
 # plot main figute
 t_ui = time.perf_counter() - t0
-fig = world_draw(manager, view=st.session_state.view)
+fig = world_draw(
+    manager, view=st.session_state.view, breakdown=st.session_state.breakdown
+)
 
 st.pyplot(fig, width="stretch")
 plt.close(fig)

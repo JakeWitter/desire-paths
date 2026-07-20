@@ -1,4 +1,5 @@
 from .grid_world import GridWorld
+from .building import Building
 from .pathfinder import PathfinderBackend, PathfinderType, CARDINAL, DIAGONAL, DIA_COST
 
 import scipy.sparse as sp
@@ -21,22 +22,75 @@ class FlowFieldBackend(PathfinderBackend):
     def update_diagonals(self):
         self.dxys = CARDINAL + DIAGONAL if self.diagonal else CARDINAL
 
-    def _dslice(self, d):
+    def _dslice(self, d: int) -> slice:
+        """Builds a slice that trims whichever edge would lack a neighbour `d` tiles
+        away along one axis, so indexing an array with it yields only the tiles with a
+        valid neighbour at that offset.
+
+        Args:
+            d: Offset along one axis. Positive looks forward, negative backward.
+
+        Returns:
+            slice: Slice to apply to that axis of an array shaped like the world
+        """
         if d > 0:
             return slice(None, -d)
         if d < 0:
             return slice(-d, None)
-        if d == 0:
-            return slice(None, None)
+        return slice(None, None)
 
-    def slope_edge_cost(self, src, dst):
-        dst_x, dst_y = dst
-        src_x, src_y = src
-        return self.slope_scale * (
-            self.world.elevation[dst_y, dst_x] - self.world.elevation[src_y, src_x]
-        )
+    def _elevation_diff(self, dx: int, dy: int) -> tuple[slice, slice, np.ndarray]:
+        """Computes the unscaled elevation difference between each tile and its
+        neighbours in direction (dx, dy), for tiles that have one.
 
-    def update(self, costs, buildings, update_buildings) -> None:
+        Args:
+            dx: Step in x
+            dy: Step in y
+
+        Returns:
+            y_src: slices locating y values for sources
+            x_src: slices location x values for sources
+            diff: the actual unscaled elevation diffs from sources in dx, dy direction
+        """
+        x_src, y_src = self._dslice(dx), self._dslice(dy)
+        x_dst, y_dst = self._dslice(-dx), self._dslice(-dy)
+        diff = self.world.elevation[y_dst, x_dst] - self.world.elevation[y_src, x_src]
+        return y_src, x_src, diff
+
+    def slope_field(self, direction: tuple[int, int]) -> np.ndarray:
+        """Gives the scaled elevation changes in a given direction.
+
+        Args:
+            direction: A cardinal or diagonal direction which elevation change is
+                calculated with respect to
+
+        Returns:
+            np.ndarray: The elevation changes in direction, same size as the world
+        """
+        width, height = self.world.width, self.world.height
+        slope = np.full((height, width), np.nan)
+        dx, dy = direction
+
+        y_src, x_src, diff = self._elevation_diff(dx, dy)
+        slope[y_src, x_src] = diff
+        return np.exp(self.slope_scale * slope)
+
+    def update(
+        self,
+        costs: np.ndarray,
+        buildings: list[Building],
+        update_buildings: list[Building],
+    ) -> None:
+        """Rebuilds the directed cost graph over all tiles and directions, then
+        recomputes the distance field for each building in update_buildings.
+        Edge_weight = wear-based cost * diagonal scale * exp(slope_scale * ele_diff),
+        so hill edges scale, rather than add/subtract.
+
+        Args:
+            costs: Current wear based costs
+            buildings: All buildings, used for pathing
+            update_buildings: Buildings with fields to update after rebuilding
+        """
         height, width = costs.shape
         n = height * width
         costs = np.maximum(costs, 0.01).copy()
@@ -59,7 +113,8 @@ class FlowFieldBackend(PathfinderBackend):
             scale = DIA_COST if dx != 0 and dy != 0 else 1.0
             src = src_y * width + src_x
             dst = dst_y * width + dst_x
-            elevation_cost = self.slope_edge_cost((src_x, src_y), (dst_x, dst_y))
+            _, _, diff = self._elevation_diff(dx, dy)
+            elevation_cost = self.slope_scale * diff
             weights = costs[dst_y, dst_x] * scale * np.exp(elevation_cost)
             weights = np.maximum(weights, 1e-9)
             if dx != 0 and dy != 0:

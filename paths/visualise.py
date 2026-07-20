@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap
+import numpy as np
+
+from paths.pathfinder_flowfield import FlowFieldBackend
 
 from .pathfinder_astar import AStarBackend
 from .world_manager import WorldManager
@@ -9,16 +12,35 @@ from .distributions import building_spawn_field
 _building_cmap = LinearSegmentedColormap.from_list("building", ["black", "red"])
 
 
-def world_draw(manager: WorldManager, view: str = "Paths"):
+def world_draw(manager: WorldManager, view: str, breakdown: dict):
     fig, ax = plt.subplots()
-    if view == "Paths":
+    if view == "Costs":
         data = manager.world.costs
+    elif view == "Uses":
+        data = manager.world.uses
     elif view == "Bld. prob":
         data = building_spawn_field(
             manager.world.width, manager.world.height, manager.buildings
         )
-    else:
+    elif view == "Elev.":
         data = manager.world.elevation
+    elif view == "Elev. grad":
+        data = manager.world.elevation_grad_mag
+    elif view == "Cost breakdown":
+        costs = np.zeros((manager.world.height, manager.world.width))
+        elevation = np.ones((manager.world.height, manager.world.width))
+        noise = np.zeros((manager.world.height, manager.world.width))
+        if breakdown["use costs"]:
+            costs = manager.world.costs
+        if breakdown["slope"]:
+            elevation = manager.pathfinder.slope_field((0, 1))
+        if breakdown["agent noise"]:
+            print(f"agent noise add")
+        if isinstance(manager.pathfinder, FlowFieldBackend):
+            data = costs * elevation + noise
+        elif isinstance(manager.pathfinder, AStarBackend):
+            data = costs + elevation + noise
+
     ax.imshow(data, cmap="YlGn", origin="upper")
     ax.set_aspect("equal")
     ax.set_xticks([])
@@ -52,7 +74,7 @@ def world_draw(manager: WorldManager, view: str = "Paths"):
         marker_x = door_x + 0.5 * (entry_x - door_x)
         marker_y = door_y + 0.5 * (entry_y - door_y)
         ax.plot(marker_x, marker_y, "o", markersize=3, color="white")
-    # ax.grid(visible=True, color="black", linestyle="-", linewidth=0.5)
+
     if len(manager.agents) <= 60:
         cmap = plt.get_cmap("tab20")
         for agent in manager.agents:

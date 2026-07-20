@@ -2,6 +2,7 @@ from pathfinding.finder.a_star import AStarFinder
 from pathfinding.core.heuristic import octile, euclidean
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
+import numpy as np
 
 from .pathfinder import PathfinderBackend, PathfinderType
 from .grid_world import GridWorld
@@ -38,6 +39,9 @@ class AStarBackend(PathfinderBackend):
 
         self._cache[agent.id] = [path, step + 1]
         return (loc.x, loc.y)
+
+    def slope_field(self, direction: tuple[int, int]) -> np.ndarray:
+        return self.elevation_cost()
 
     def elevation_cost(self):
         return self.slope_scale * self.world.elevation_grad_mag

@@ -27,6 +27,9 @@ class PathfinderBackend(ABC):
     @abstractmethod
     def update(self, costs, buildings, update_buildings) -> None: ...
 
+    @abstractmethod
+    def slope_field(self, direction: tuple[int, int]) -> np.ndarray: ...
+
     def remove_agent(self, agent_id):
         pass
 
